@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Math content (shared by problem statements, hints, solutions) ─────────── */
+
+.math-content .katex-display,
+.solution-body .katex-display {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.math-content .katex,
+.solution-body .katex {
+  font-size: 1.05em;
+}
+
+/* Answer card — larger math */
+.solution-answer .katex {
+  font-size: 1.2em;
+}
+.solution-answer .katex-display {
+  margin: 0.5rem 0;
+  text-align: center;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: #F7F8FB;
+  color: #14171F;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
