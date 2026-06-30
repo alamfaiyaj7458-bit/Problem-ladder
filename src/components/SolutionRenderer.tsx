@@ -50,11 +50,51 @@ function preprocess(raw: string): {
     body.push(line);
   }
 
-  // Defensive fix: ensure every $$ delimiter sits on its own line with blank
-  // lines around it. Without this, consecutive $$ ... $$ blocks placed on
-  // adjacent lines merge into a single unreadable paragraph.
-  let joined = body.join("\n");
-  joined = joined.replace(/\$\$/g, "\n$$\n").replace(/\n{3,}/g, "\n\n");
+  // Defensive fix: ensure every $$ ... $$ display-math block is properly
+  // separated by blank lines so remark-math always parses it as a block,
+  // never merged with adjacent text or another equation.
+  // We track open/close state rather than blindly regex-replacing "$$",
+  // since "$$" can never be treated as a literal in a JS replacement string
+  // (it is a special back-reference token there).
+  const normalized: string[] = [];
+  let mathOpen = false;
+
+  for (const line of body) {
+    // A line may contain $$ as: pure delimiter ("$$"), opening with content
+    // ("$$ x = 1"), closing with content ("x = 1 $$"), or self-contained
+    // ("$$ x = 1 $$"). Handle each case explicitly.
+    const trimmed = line.trim();
+
+    if (trimmed === "$$") {
+      normalized.push("", "$$", "");
+      mathOpen = !mathOpen;
+      continue;
+    }
+
+    if (!mathOpen && trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4) {
+      // Self-contained single-line block: $$ math $$
+      normalized.push("", trimmed, "");
+      continue;
+    }
+
+    if (!mathOpen && trimmed.startsWith("$$")) {
+      // Opens here, content follows on this same line
+      normalized.push("", "$$", trimmed.slice(2).trim());
+      mathOpen = true;
+      continue;
+    }
+
+    if (mathOpen && trimmed.endsWith("$$")) {
+      // Closes here, content precedes on this same line
+      normalized.push(trimmed.slice(0, -2).trim(), "$$", "");
+      mathOpen = false;
+      continue;
+    }
+
+    normalized.push(line);
+  }
+
+  let joined = normalized.join("\n").replace(/\n{3,}/g, "\n\n");
 
   return { body: joined, finalAnswer, takeaway };
 }
