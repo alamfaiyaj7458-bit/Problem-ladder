@@ -197,6 +197,12 @@ TAKEAWAY: One sentence the student should remember.
 * Never include introductions or conclusions.
 * Solution step by step but no written "step 1, step 2 etc".(Critical)
 
+━━━ CRITICAL FORMATTING RULES ━━━
+- NEVER write ### followed directly by text with no space (e.g. "###(Differentiate)" is WRONG). The # symbol must never appear except as "## " (two hashes, one space, then the step name) for step headings.
+- Substep labels are plain text in parentheses on their own line: "(Differentiate)" not "###(Differentiate)".
+- ALWAYS put a blank line before and after every $$ ... $$ block. Never place two $$ blocks on adjacent lines with no blank line between them — this causes them to merge into unreadable text.
+- Each $$ block must contain exactly ONE equation. Do not chain multiple equations inside one $$ block separated by spaces.
+
 Forbidden headings:
 
 * Idea
@@ -246,10 +252,6 @@ Allowed justifications:
 * Do not explain intermediate calculations unless mathematically necessary.
 * Never use tables or LaTeX array environments.
 
-
-Important:
-FINAL_ANSWER: the answer (use $...$ for inline math e.g. $x = 5$)
-TAKEAWAY: One sentence the student should remember.
 
 ━━━ MATH RULES ━━━
 - ALL math in LaTeX.

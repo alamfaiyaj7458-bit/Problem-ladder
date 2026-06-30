@@ -24,21 +24,39 @@ function preprocess(raw: string): {
   let takeaway: string | null = null;
   let inArray = false;
 
-  for (const line of lines) {
+  for (let line of lines) {
     if (/^FINAL_ANSWER:\s*/i.test(line)) {
       finalAnswer = line.replace(/^FINAL_ANSWER:\s*/i, "").trim();
-    } else if (/^TAKEAWAY:\s*/i.test(line)) {
-      takeaway = line.replace(/^TAKEAWAY:\s*/i, "").trim();
-    } else if (/\\begin\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) {
-      inArray = true;
-    } else if (inArray) {
-      if (/\\end\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) inArray = false;
-    } else {
-      body.push(line);
+      continue;
     }
+    if (/^TAKEAWAY:\s*/i.test(line)) {
+      takeaway = line.replace(/^TAKEAWAY:\s*/i, "").trim();
+      continue;
+    }
+    if (/\\begin\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) {
+      inArray = true;
+      continue;
+    }
+    if (inArray) {
+      if (/\\end\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) inArray = false;
+      continue;
+    }
+
+    // Defensive fix: malformed "###(label)" or "##(label)" with no space after
+    // the hashes is not valid Markdown — strip the leading hashes so it
+    // renders as plain text instead of being silently absorbed into a paragraph.
+    line = line.replace(/^#{1,6}(?=\S)/, "");
+
+    body.push(line);
   }
 
-  return { body: body.join("\n"), finalAnswer, takeaway };
+  // Defensive fix: ensure every $$ delimiter sits on its own line with blank
+  // lines around it. Without this, consecutive $$ ... $$ blocks placed on
+  // adjacent lines merge into a single unreadable paragraph.
+  let joined = body.join("\n");
+  joined = joined.replace(/\$\$/g, "\n$$\n").replace(/\n{3,}/g, "\n\n");
+
+  return { body: joined, finalAnswer, takeaway };
 }
 
 // ─── Section header ───────────────────────────────────────────────────────────
