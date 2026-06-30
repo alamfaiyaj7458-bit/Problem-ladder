@@ -13,6 +13,7 @@ declare module "katex" {
   }
   function renderToString(expression: string, options?: KatexOptions): string;
   function render(expression: string, element: HTMLElement, options?: KatexOptions): void;
-  export default { renderToString, render };
+  const katex: { renderToString: typeof renderToString; render: typeof render };
+  export default katex;
   export { renderToString, render };
 }

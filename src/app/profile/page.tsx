@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Field";
 import { formatDate } from "@/lib/utils";
@@ -27,9 +28,12 @@ export default async function ProfilePage() {
         {/* Avatar + name */}
         <div className="flex items-center gap-4">
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt={profile.display_name ?? "Avatar"}
+              width={64}
+              height={64}
+              unoptimized
               className="h-16 w-16 rounded-full object-cover ring-2 ring-line"
             />
           ) : (

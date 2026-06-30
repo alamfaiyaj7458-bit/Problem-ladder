@@ -333,14 +333,7 @@ export function SearchBar({
               onClick={() => { saveRecent(query.trim()); setFocused(false); }}
               className="flex items-center justify-between border-t border-line px-4 py-2.5 text-sm text-ink-soft hover:bg-ink/[0.03] hover:text-accent transition-colors"
             >
-            <span>
-  View all results for{" "}
-  <span className="font-medium text-ink">
-    {"“"}
-    {query.trim()}
-    {"”"}
-  </span>
-</span>
+              <span>View all results for <span className="font-medium text-ink">&ldquo;{query.trim()}&rdquo;</span></span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}

@@ -7,57 +7,11 @@ Problems**.
 Stack: Next.js (App Router) + TypeScript + Tailwind CSS, Supabase (Postgres +
 Auth), Gemini API.
 
----
 
-## 1. Setup
-
-### 1.1 Install dependencies
-
-```bash
-npm install
-```
-
-### 1.2 Create a Supabase project
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run `supabase/migrations/0001_init.sql`.
-3. Optionally run `supabase/seed.sql` for a few sample units, chapters,
-   problems and solutions so the app isn't empty on first run.
-4. Copy `.env.example` to `.env.local` and fill in:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-   Both are in Project Settings → API.
-
-### 1.3 Get a Gemini API key
-
-1. Get a key at [aistudio.google.com](https://aistudio.google.com).
-2. Set `GEMINI_API_KEY` in `.env.local`.
-3. `GEMINI_MODEL` defaults to `gemini-2.5-flash` — change it if you'd rather
-   use a different model. Internet discovery (`/admin/problems/discover`)
-   needs a model/tier that supports Google Search grounding.
-
-### 1.4 Make yourself an admin
-
-Sign up once through the app (`/login`), then in the Supabase SQL editor:
-
-```sql
-update profiles set role = 'admin' where id = '<your-user-uuid>';
-```
-
-(Find your UUID in Authentication → Users.)
-
-### 1.5 Run it
-
-```bash
-npm run dev
-```
-
-Visit `http://localhost:3000`. Admin panel is at `/admin`.
 
 ---
 
-## 2. How the pieces fit together
+## 1. How the pieces fit together
 
 ### Content hierarchy
 Units and chapters are **only** created/edited/deleted by admins
@@ -121,7 +75,7 @@ students, consistent with keeping the problem page minimal.
 
 ---
 
-## 3. Project structure
+## 2. Project structure
 
 ```
 src/
@@ -146,7 +100,7 @@ supabase/
   seed.sql                    optional sample content
 ```
 
-## 4. Deliberately left out (per the V1 lessons)
+## 3. Deliberately left out (per the V1 lessons)
 
 - No separate `tags` table — tags are a plain `text[]` column. A many-to-many
   table with its own admin UI wasn't worth it for descriptive search terms.
