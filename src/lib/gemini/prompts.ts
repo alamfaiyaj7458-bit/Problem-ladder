@@ -201,7 +201,6 @@ TAKEAWAY: One sentence the student should remember.
 - NEVER write ### followed directly by text with no space (e.g. "###(Differentiate)" is WRONG). The # symbol must never appear except as "## " (two hashes, one space, then the step name) for step headings.
 - Substep labels are plain text in parentheses on their own line: "(Differentiate)" not "###(Differentiate)".
 - ALWAYS put a blank line before and after every $$ ... $$ block. Never place two $$ blocks on adjacent lines with no blank line between them — this causes them to merge into unreadable text.
-- Each $$ block must contain exactly ONE equation. Do not chain multiple equations inside one $$ block separated by spaces.
 
 Forbidden headings:
 
