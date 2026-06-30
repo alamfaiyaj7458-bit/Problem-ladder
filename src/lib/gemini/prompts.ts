@@ -154,9 +154,8 @@ Statement: ${args.statement}
 
 Use this structure only.
 
-## Solution
-
-### Step 1: [Short Title]
+Solution
+[Mathematical Operation]
 
 (Optional justification — maximum 5 words.)
 
@@ -168,20 +167,31 @@ $$
 next\ equation
 $$
 
-### Step 2: [Short Title]
-
-(Optional justification — maximum 5 words.)
-
-$$
-equation
-$$
-
-Continue until the solution is complete.
-
-Answer
-
+Repeat the above section as many times as necessary.
 FINAL_ANSWER: the answer (use $...$ for inline math e.g. $x = 5$)
 TAKEAWAY: One sentence the student should remember.
+
+The section title must describe the mathematical operation being performed.
+
+Examples:
+
+Factorization
+Substitution
+Apply Vieta's Formula
+Quadratic Formula
+Equation of Motion
+Differentiate
+Integrate
+Simplify
+Solve
+Verification
+
+Do NOT use generic titles such as:
+
+Step 1
+Step 2
+Step 3
+
 
 
 ━━━ WRITING RULES ━━━
