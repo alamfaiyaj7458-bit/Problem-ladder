@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCircle } from "lucide-react";
+import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
 import { NavDrawer } from "@/components/NavDrawer";
@@ -30,16 +30,16 @@ export async function SiteHeader() {
             <span className="truncate font-serif text-lg text-ink">Problem Ladder</span>
           </Link>
         </div>
-        <nav className="flex shrink-0 items-center gap-4 text-sm">
+        <nav className="flex shrink-0 items-center gap-5 text-sm">
           {profile ? (
             <>
-              <Link href="/" className="text-ink-soft hover:text-accent">
-                Home
+              <Link href="/" aria-label="Home" className="text-ink-soft hover:text-accent transition-colors">
+                <Home className="h-5 w-5" />
               </Link>
-              <Link href="/dashboard" className="text-ink-soft hover:text-accent">
-                Dashboard
+              <Link href="/dashboard" aria-label="Dashboard" className="text-ink-soft hover:text-accent transition-colors">
+                <LayoutDashboard className="h-5 w-5" />
               </Link>
-              <Link href="/profile" aria-label="Profile" className="text-ink-soft hover:text-accent">
+              <Link href="/profile" aria-label="Profile" className="text-ink-soft hover:text-accent transition-colors">
                 <UserCircle className="h-5 w-5" />
               </Link>
             </>
