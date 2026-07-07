@@ -84,7 +84,7 @@ export function SolutionReveal({
       const isCorrect = selectedIndex === correctOption;
       setAttempts((n) => n + 1);
       setVerifyState(isCorrect ? "correct" : "incorrect");
-      setFeedback(isCorrect ? "Correct!" : "Wrong!");
+      setFeedback(isCorrect ? "Correct!" : "Not quite — the correct choice is highlighted below.");
 
       await submitVerifiedAnswer(problemId, options[selectedIndex] ?? String(selectedIndex), isCorrect);
       if (isCorrect) {
@@ -210,7 +210,7 @@ export function SolutionReveal({
           </label>
 
           {!hasOptions ? (
-            <p className="text-sm text-ink-faint">This question doesn't have answer choices yet.</p>
+            <p className="text-sm text-ink-faint">This question doesn&apos;t have answer choices yet.</p>
           ) : (
             <div className="space-y-2">
               {options.map((option, i) => {
