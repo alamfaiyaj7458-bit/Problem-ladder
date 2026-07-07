@@ -11,7 +11,9 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
+import katex from "katex";
 import type { Components } from "react-markdown";
+import { plainMathToLatex } from "@/lib/plainMathToLatex";
 
 // ─── Shared component map ─────────────────────────────────────────────────────
 // Used by both inline (compact) and block (full) modes.
@@ -93,7 +95,9 @@ function sharedComponents(compact: boolean): Components {
 
     code: ({ children, className }) => {
       const lang = className?.replace("language-", "");
-      if (lang || (typeof children === "string" && String(children).includes("\n"))) {
+      const text = typeof children === "string" ? children : String(children);
+
+      if (lang || text.includes("\n")) {
         return (
           <div className="my-4 overflow-hidden rounded-lg border border-line">
             {lang && (
@@ -107,6 +111,22 @@ function sharedComponents(compact: boolean): Components {
           </div>
         );
       }
+
+      // Short, single-line backtick spans are always someone's informal way
+      // of marking up math here (this app has no real use case for literal
+      // source code in a problem statement) — render through KaTeX instead
+      // of leaving it as a plain monospace blob. Only fall back to plain
+      // code styling if KaTeX itself can't make sense of it.
+      try {
+        const html = katex.renderToString(plainMathToLatex(text), {
+          throwOnError: false,
+          displayMode: false
+        });
+        return <span dangerouslySetInnerHTML={{ __html: html }} />;
+      } catch {
+        // fall through to plain code styling below
+      }
+
       return (
         <code className="rounded bg-ink/[0.06] px-1.5 py-0.5 font-mono text-xs text-ink">
           {children}

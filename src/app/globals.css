@@ -4,22 +4,24 @@
 
 /* ── Math content (shared by problem statements, hints, solutions) ─────────── */
 
+/* Display equations — centred, generous vertical breathing room */
 .math-content .katex-display,
 .solution-body .katex-display {
-  margin: 1.5rem 0;
+  margin: 1.75rem 0;
   overflow-x: auto;
   overflow-y: hidden;
   text-align: center;
 }
 
+/* Inline math — slightly larger than body text so it reads clearly */
 .math-content .katex,
 .solution-body .katex {
-  font-size: 1.05em;
+  font-size: 1.08em;
 }
 
-/* Answer card — larger math */
+/* Answer card math — larger and prominent */
 .solution-answer .katex {
-  font-size: 1.2em;
+  font-size: 1.25em;
 }
 .solution-answer .katex-display {
   margin: 0.5rem 0;

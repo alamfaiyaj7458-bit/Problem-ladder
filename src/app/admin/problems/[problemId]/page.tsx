@@ -71,7 +71,7 @@ export default async function AdminProblemDetailPage({ params }: { params: Promi
       </div>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-[1fr_220px]">
-        <ProblemEditForm problem={problem} />
+        <ProblemEditForm problem={problem} solutionContent={solution?.content ?? null} />
         <PublishControls problemId={problem.id} status={problem.status} />
       </div>
 

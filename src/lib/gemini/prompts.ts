@@ -30,43 +30,37 @@ ${chapterList}
 Assign a difficulty_score from 0 (trivial) to 100 (extremely hard, olympiad
 final-round level). Assign 2-8 concrete concept tags a student might search
 for (e.g. "cyclic quadrilateral", "vieta", "pigeonhole"), lowercase, no
-duplicates.
+duplicates.`
+  };
+}
 
-You are an expert mathematics educator and competition problem analyst.
+// --- Suggest MCQ options for a single problem -------------------------------
 
-Your task is to analyze a mathematics problem and classify it accurately.
+export function suggestOptionsPrompt(args: { title: string; statement: string; solutionContent?: string }) {
+  const solutionSection = args.solutionContent
+    ? `\n\nWorked solution (use this to determine the correct answer precisely):\n${args.solutionContent}`
+    : "";
 
-You must determine:
+  return {
+    system: BASE_SYSTEM,
+    prompt: `Write 4 multiple-choice answer options for the following problem.
 
-1. Subject
-2. Main Topic
-3. Subtopic
-4. Concepts Required
-5. Techniques Required
-6. Difficulty (1-100)
-7. Estimated Solve Time (minutes)
-8. Common Mistakes
-9. Prerequisites
+Problem title: ${args.title}
+Problem statement: ${args.statement}${solutionSection}
 
-Difficulty Guidelines
+Solve the problem yourself first, then produce exactly 4 answer choices in
+\`options\` and the 0-based index of the correct one in \`correct_option\`.
 
-1-20
-Very easy. Direct substitution or one-step calculation.
+The 3 incorrect choices (distractors) must be plausible — each should reflect
+a specific, realistic mistake (a sign error, an off-by-one, using the wrong
+formula, stopping one step early, a common misconception), not a random or
+obviously-wrong value. A student who made that particular mistake should
+land on that exact distractor.
 
-21-40
-Basic application of one concept.
-
-41-60
-Requires understanding and combining ideas.
-
-61-80
-Multi-step reasoning, hidden observations, or creative application.
-
-81-100
-Olympiad-level insight or advanced mathematical reasoning.
-
-
-`
+Keep all 4 choices similar in format, length, and style to each other so the
+correct one isn't identifiable just by looking different. Use the same LaTeX
+math formatting conventions as the statement ($...$ for inline math) when a
+choice contains a mathematical expression.`
   };
 }
 
@@ -95,6 +89,21 @@ Requirements for every problem:
 - 2-8 concrete concept tags per problem, lowercase.
 - No two generated problems should be near-duplicates of each other.
 
+ANSWER CHOICES (required, multiple choice):
+- Provide exactly 4 answer choices in \`options\` and the 0-based index of
+  the correct one in \`correct_option\`.
+- The 3 incorrect choices (distractors) must be plausible — each should
+  reflect a specific, realistic mistake (a sign error, an off-by-one, using
+  the wrong formula, a common misconception), not random or obviously wrong
+  values. A student who made that particular mistake should land on that
+  exact distractor.
+- Keep all 4 choices similar in format, length, and style to each other so
+  the correct one isn't identifiable just by looking different.
+- Randomize which index holds the correct answer across problems — don't
+  default to always putting it first or in the same position.
+- Write each option using the same LaTeX math formatting rules as the
+  statement (see below) when it contains a mathematical expression.
+
 MATH FORMATTING IN STATEMENTS (required):
 - ALL mathematical expressions must be written in LaTeX — never plain text.
 - Inline math for variables and short expressions: $a^2 - 3a + 1 = 0$
@@ -104,184 +113,75 @@ $$
 $$
 - Display math: opening $$ on its own line, equation on next line, closing $$ on its own line.
 - Never write: a^2, sqrt(x), (a+b)/c, theta, alpha — always use $a^2$, $\\sqrt{x}$, $\\frac{a+b}{c}$, $\\theta$, $\\alpha$.
-- Use: \\frac{}{}, \\sqrt{}, \\binom{}{}, \\sum, \\int, \\theta, \\alpha, \\beta, \\pi, \\leq, \\geq, \\neq, \\cdot, \\times, \\pm
-
-You are a senior mathematics textbook author.
-
-Your objective is to generate ORIGINAL mathematics problems.
-
-- Never copy existing textbook problems.
-- Create mathematically correct problems.
-- Use natural mathematical language.
-- Use LaTeX where appropriate.
-- Avoid ambiguity.
-- There must be exactly one correct answer unless otherwise specified.
-- Numbers should be chosen carefully.
-- The difficulty must closely match the requested difficulty.
-- Problems should test understanding rather than memorization.
-- Do not generate trick questions.
-
-difficulty categorization according to difficulty score:
-1-20
-Direct formula application.
-
-21-40
-Basic conceptual understanding.
-
-41-60
-Multiple concepts.
-
-61-80
-Non-trivial reasoning.
-
-81-100
-Creative insight.
-
-
-`
+- Use: \\frac{}{}, \\sqrt{}, \\binom{}{}, \\sum, \\int, \\theta, \\alpha, \\beta, \\pi, \\leq, \\geq, \\neq, \\cdot, \\times, \\pm`
   };
 }
 
 export function generateSolutionPrompt(args: { title: string; statement: string }) {
   return {
-    system: BASE_SYSTEM,
-    prompt: `Solve this problem step by step. Write for a student who is learning.
+    system: `You are a senior mathematics author preparing solutions for a premium digital textbook. Your solutions appear on a platform that renders Markdown and KaTeX. You write with the precision and elegance of a professional mathematician — every sentence earns its place, every equation flows naturally from the last.`,
+    prompt: `Write a complete, elegant solution to this problem.
 
-Title: ${args.title}
-Statement: ${args.statement}
+Problem: ${args.statement}
 
-━━━ OUTPUT FORMAT (follow exactly) ━━━
+━━━ STYLE GUIDE ━━━
 
-Use this structure only.
+Write the solution as one continuous mathematical derivation — not a checklist.
 
-Solution
-[Mathematical Operation]
+GOOD: A flowing argument where each equation leads naturally to the next.
+BAD: "Step 1: Differentiate. Step 2: Substitute. Step 3: Simplify."
 
-(Optional justification — maximum 5 words.)
+Rules:
+- No generic headings like "Step 1", "Differentiate", "Substitute", "Simplify", "Calculate", "Solution", "Observation".
+- No numbered or bulleted lists for the main derivation.
+- Guide the reader with minimal, precise prose between equations.
+- Every sentence must have a clear mathematical purpose. Cut everything else.
+- Never state the obvious. Never explain trivial algebra.
+- Do not repeat a calculation. Each result appears exactly once.
+- The derivation should read like a proof in a textbook: economical, confident, precise.
 
-$$
-equation
-$$
+EXAMPLE OF THE TARGET STYLE (for a different problem — do not copy):
 
-$$
-next\ equation
-$$
-
-Repeat the above section as many times as necessary.
-FINAL_ANSWER: the answer (use $...$ for inline math e.g. $x = 5$)
-TAKEAWAY: One sentence the student should remember.
-
-The section title must describe the mathematical operation being performed.
-
-Examples:
-
-Factorization
-Substitution
-Apply Vieta's Formula
-Quadratic Formula
-Equation of Motion
-Differentiate
-Integrate
-Simplify
-Solve
-Verification
-
-Do NOT use generic titles such as:
-
-Step 1
-Step 2
-Step 3
-
-
-
-━━━ WRITING RULES ━━━
-* One step per line. (critical)
-* The solution should read like an official examination answer.
-* Prefer equations over words.
-* Every sentence must contain at most **5 words**.
-* Never write paragraphs.
-* Never explain obvious algebra.
-* Never repeat information already shown mathematically.
-* Never describe what you are about to do.
-* Never summarize what you just did.
-* Never include introductions or conclusions.
-* Solution step by step but no written "step 1, step 2 etc".(Critical)
-
-━━━ CRITICAL FORMATTING RULES ━━━
-- NEVER write ### followed directly by text with no space (e.g. "###(Differentiate)" is WRONG). The # symbol must never appear except as "## " (two hashes, one space, then the step name) for step headings.
-- Substep labels are plain text in parentheses on their own line: "(Differentiate)" not "###(Differentiate)".
-- ALWAYS put a blank line before and after every $$ ... $$ block. Never place two $$ blocks on adjacent lines with no blank line between them — this causes them to merge into unreadable text.
-
-Forbidden headings:
-
-* Idea
-* Approach
-* Observation
-* Explanation
-* Discussion
-* Final Simplification
-* Note
-* Alternative Method
-
-Forbidden phrases:
-
-* We know
-* We observe
-* Notice that
-* Let us
-* Clearly
-* Since we are given
-* The idea is
-* The core idea
-* This means that
-* Therefore we can
-* Hence we obtain
-* From the above
-* It follows that
-
-Allowed justifications:
-
-* Factorise
-* Substitute values
-* Apply Vieta's formulas
-* Zero Product Property
-* Quadratic formula
-* Expand
-* Simplify
-* Rearrange
-* Differentiate
-* Integrate
-
-━━━ MATHEMATICS RULES ━━━
-
-* ALL mathematics must be written in LaTeX.
-* Use display equations whenever possible.
-* Consecutive algebraic manipulations should be shown as separate equations.
-* Skip trivial arithmetic.
-* Do not explain intermediate calculations unless mathematically necessary.
-* Never use tables or LaTeX array environments.
-
-
-━━━ MATH RULES ━━━
-- ALL math in LaTeX.
-- Inline: $a^2 = 3a - 1$
-- Display equations: opening $$ on its own line, equation on next line, closing $$ on its own line. Like this:
+Since $a$ satisfies $a^2 - 3a + 1 = 0$, we have $a^2 + 1 = 3a$ and, dividing by $a$,
 
 $$
-a^2 + 1 = 3a
+a + \\frac{1}{a} = 3.
 $$
 
-- NEVER put $$ on the same line as the equation.
-- NEVER use \\begin{array}, \\begin{tabular}, \\begin{matrix} or any LaTeX table/array environments. They do not render.
-- For polynomial long division: describe each step in prose + individual equations. No tables.
-- Use: \\frac{}{}, \\sqrt{}, \\cdot, \\leq, \\geq, \\implies, \\neq, \\theta, \\alpha, \\beta, \\pm
+Polynomial division gives
 
-━━━ PROSE RULES ━━━
-- Write in single sentences.
-- Use bullet points ONLY for listing multiple conditions or cases, not for the main explanation flow.
-- Do NOT use "1. 2. 3." numbered lists.
-- Do NOT add a ## Final Answer heading before FINAL_ANSWER:.
-- Do NOT repeat calculations. Each step should appear once only.`
+$$
+\\frac{2a^5 - 5a^4 + 2a^3 - 8a^2}{a^2+1} = 2a^3 - 5a^2 - 3 + \\frac{3}{a^2+1}.
+$$
+
+Substituting $a^2 = 3a-1$ repeatedly reduces the polynomial part to $a - 4$, so the expression equals
+
+$$
+a + \\frac{1}{a} - 4 = 3 - 4 = -1.
+$$
+
+━━━ STRUCTURE ━━━
+
+Write flowing prose + equations. Then end with exactly:
+
+FINAL_ANSWER: <the answer, using $...$ math if needed>
+TAKEAWAY: <one precise sentence — a mathematical insight, not a procedure description>
+
+━━━ MATH FORMAT ━━━
+
+All math in LaTeX. Rules:
+- Inline: $x^2 - 1$, $\\frac{dy}{dx}$, $\\theta$
+- Display (important equations, results, derivation steps):
+
+$$
+\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}
+$$
+
+- EVERY $$ must be on its own line. Opening $$ on one line, equation on the next, closing $$ on the next. Never on the same line as the equation.
+- Blank line before and after every display equation block.
+- ONE equation per $$ block.
+- Never use \\begin{array}, \\begin{tabular}, \\begin{matrix}.
+- Use: \\frac{}{}, \\sqrt{}, \\binom{}{}, \\sum, \\int, \\lim, \\infty, \\cdot, \\times, \\pm, \\leq, \\geq, \\neq, \\implies, \\theta, \\alpha, \\beta, \\pi, \\mathbb{R}, \\mathbb{Z}`
   };
 }
 
@@ -321,20 +221,24 @@ export function fixSolutionPrompt(args: {
   fixes: string[];
 }) {
   return {
-    system: BASE_SYSTEM,
-    prompt: `Rewrite this solution to fully address the critique below. Produce the
-final, corrected solution only.
+    system: `You are a senior mathematics author preparing solutions for a premium digital textbook. Your solutions appear on a platform that renders Markdown and KaTeX.`,
+    prompt: `Rewrite this solution to correct all issues. Produce a flowing mathematical derivation — not a checklist.
 
 Problem: ${args.statement}
 Original solution: ${args.solution}
-Critique: ${args.critique}
-Required fixes: ${args.fixes.join("; ")}
+Issues to fix: ${args.fixes.join("; ")}
 
-Follow the same output format as the original:
-- Use ## headings for sections.
-- Write all math in LaTeX ($inline$ and $$display$$).
-- Use bullet lists for listing items.
-- End with FINAL_ANSWER: and TAKEAWAY: lines.`
+Write as one continuous derivation with minimal guiding prose and display equations using the same LaTeX format:
+- Inline math: $x^2$
+- Display equations (each on its own $$ block with blank lines around it):
+
+$$
+equation
+$$
+
+End with:
+FINAL_ANSWER: <answer>
+TAKEAWAY: <one precise mathematical insight>`
   };
 }
 

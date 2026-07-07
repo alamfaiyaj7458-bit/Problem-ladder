@@ -29,6 +29,28 @@ export const categorizeZodSchema = z.object({
 
 export type CategorizeResult = z.infer<typeof categorizeZodSchema>;
 
+// --- Suggest MCQ options for a single problem -------------------------------
+
+export const suggestOptionsResponseSchema = {
+  type: "object",
+  properties: {
+    options: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 4,
+      maxItems: 4,
+      description: "Exactly 4 answer choices. One correct, three plausible distractors reflecting common mistakes."
+    },
+    correct_option: { type: "number", description: "0-based index into `options` for the correct choice." }
+  },
+  required: ["options", "correct_option"]
+};
+
+export const suggestOptionsZodSchema = z.object({
+  options: z.array(z.string().min(1)).length(4),
+  correct_option: z.number().int().min(0).max(3)
+});
+
 // --- Generate problems: batch creation within one chapter ------------------
 
 export const generatedProblemSchema = {
@@ -37,9 +59,17 @@ export const generatedProblemSchema = {
     title: { type: "string" },
     statement: { type: "string", description: "The full problem statement, self-contained, no answer included." },
     difficulty_score: { type: "number" },
-    tags: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 8 }
+    tags: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 8 },
+    options: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 4,
+      maxItems: 4,
+      description: "Exactly 4 answer choices. One correct, three plausible distractors reflecting common mistakes — never obviously wrong."
+    },
+    correct_option: { type: "number", description: "0-based index into `options` for the correct choice." }
   },
-  required: ["title", "statement", "difficulty_score", "tags"]
+  required: ["title", "statement", "difficulty_score", "tags", "options", "correct_option"]
 };
 
 export const generateProblemsResponseSchema = {
@@ -54,7 +84,9 @@ export const generatedProblemZodSchema = z.object({
   title: z.string().min(3),
   statement: z.string().min(10),
   difficulty_score: z.number().min(0).max(100),
-  tags: z.array(z.string().min(1)).min(1).max(10)
+  tags: z.array(z.string().min(1)).min(1).max(10),
+  options: z.array(z.string().min(1)).length(4),
+  correct_option: z.number().int().min(0).max(3)
 });
 
 export const generateProblemsZodSchema = z.object({

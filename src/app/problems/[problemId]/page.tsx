@@ -16,7 +16,7 @@ export default async function ProblemPage({ params }: { params: Promise<{ proble
 
   const { data: problem } = await supabase
     .from("problems")
-    .select("id, chapter_id, title, statement, difficulty_level, difficulty_score, tags, status, chapters(name, slug, units(name, slug))")
+    .select("id, chapter_id, title, statement, difficulty_level, difficulty_score, tags, status, options, correct_option, chapters(name, slug, units(name, slug))")
     .eq("id", problemId)
     .eq("status", "published")
     .single();
@@ -95,6 +95,8 @@ export default async function ProblemPage({ params }: { params: Promise<{ proble
 
       <SolutionReveal
         content={solution?.content ?? null}
+        options={problem.options ?? []}
+        correctOption={problem.correct_option}
         problemId={problem.id}
         problemTitle={problem.title}
         problemStatement={problem.statement}

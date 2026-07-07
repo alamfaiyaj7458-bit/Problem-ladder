@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createProblem } from "@/server-actions/problems";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select, Label, Card } from "@/components/ui/Field";
+import { McqOptionsEditor } from "@/components/admin/McqOptionsEditor";
 import { DIFFICULTY_LABEL, scoreToLevel } from "@/lib/difficulty";
 import type { Chapter, Unit } from "@/lib/types";
 
@@ -17,9 +18,38 @@ export function ManualProblemForm({ units, chapters }: { units: Unit[]; chapters
   const [chapterId, setChapterId] = useState(chapters[0]?.id ?? "");
   const [difficultyScore, setDifficultyScore] = useState(30);
   const [tags, setTags] = useState("");
+  const [options, setOptions] = useState(["", "", "", ""]);
+  const [correctIndex, setCorrectIndex] = useState<number | null>(null);
+  const [suggestingOptions, setSuggestingOptions] = useState(false);
+  const [suggestOptionsError, setSuggestOptionsError] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleSuggestOptions() {
+    if (!title.trim() || !statement.trim()) {
+      setSuggestOptionsError("Add a title and statement first.");
+      return;
+    }
+    setSuggestingOptions(true);
+    setSuggestOptionsError(null);
+    try {
+      const res = await fetch("/api/ai/suggest-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, statement })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not suggest options");
+
+      setOptions([0, 1, 2, 3].map((i) => data.options[i] ?? ""));
+      setCorrectIndex(data.correct_option);
+    } catch (err) {
+      setSuggestOptionsError((err as Error).message);
+    } finally {
+      setSuggestingOptions(false);
+    }
+  }
 
   async function handleSuggest() {
     if (!title.trim() || !statement.trim()) {
@@ -112,6 +142,21 @@ export function ManualProblemForm({ units, chapters }: { units: Unit[]; chapters
         <div>
           <Label>Tags (comma-separated)</Label>
           <Input name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="circle, tangent" />
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" size="sm" onClick={handleSuggestOptions} disabled={suggestingOptions}>
+              {suggestingOptions ? "Solving & writing choices..." : "Suggest answer choices"}
+            </Button>
+            {suggestOptionsError && <p className="text-xs text-level-master">{suggestOptionsError}</p>}
+          </div>
+          <McqOptionsEditor
+            options={options}
+            correctIndex={correctIndex}
+            onChange={setOptions}
+            onCorrectIndexChange={setCorrectIndex}
+          />
         </div>
 
         <Button type="submit" disabled={submitting || chapters.length === 0}>

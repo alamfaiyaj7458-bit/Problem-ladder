@@ -10,12 +10,15 @@ interface Problem {
   title: string;
   status: string;
   hasSolution: boolean;
+  hasOptions: boolean;
 }
 
 export function BulkActionsBar({ problems }: { problems: Problem[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
+  const [generatingOptions, setGeneratingOptions] = useState(false);
+  const [optionsProgress, setOptionsProgress] = useState<{ done: number; total: number } | null>(null);
   const [publishing, startPublish] = useTransition();
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,6 +76,36 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
     }
   }
 
+  async function handleBulkSuggestOptions() {
+    if (selected.size === 0) return;
+    const ids = [...selected];
+    setGeneratingOptions(true);
+    setMessage(null);
+    setOptionsProgress({ done: 0, total: ids.length });
+
+    try {
+      const res = await fetch("/api/ai/bulk-suggest-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ problemIds: ids })
+      });
+      const data = await res.json();
+      const failed = (data.results as { ok: boolean }[]).filter((r) => !r.ok).length;
+      setMessage({
+        text: failed === 0
+          ? `Answer choices generated for all ${ids.length} problems.`
+          : `Done — ${ids.length - failed} succeeded, ${failed} failed.`,
+        ok: failed === 0
+      });
+      setOptionsProgress({ done: ids.length, total: ids.length });
+    } catch {
+      setMessage({ text: "Generation failed — check the console.", ok: false });
+    } finally {
+      setGeneratingOptions(false);
+      setOptionsProgress(null);
+    }
+  }
+
   function handleBulkPublish() {
     if (selected.size === 0) return;
     setMessage(null);
@@ -100,6 +133,8 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
         <Search className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
         <input
           type="text"
+          id="admin-problem-search"
+          name="admin-problem-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search problems…"
@@ -137,10 +172,10 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
         <div className="ml-auto flex gap-2">
           <button
             onClick={handleBulkGenerate}
-            disabled={!anySelected || generating || publishing}
+            disabled={!anySelected || generating || generatingOptions || publishing}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              anySelected && !generating && !publishing
+              anySelected && !generating && !generatingOptions && !publishing
                 ? "bg-accent text-white hover:bg-accent/90"
                 : "bg-ink/10 text-ink-faint cursor-not-allowed"
             )}
@@ -153,11 +188,28 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
           </button>
 
           <button
-            onClick={handleBulkPublish}
-            disabled={!anySelected || generating || publishing}
+            onClick={handleBulkSuggestOptions}
+            disabled={!anySelected || generating || generatingOptions || publishing}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              anySelected && !generating && !publishing
+              anySelected && !generating && !generatingOptions && !publishing
+                ? "bg-accent text-white hover:bg-accent/90"
+                : "bg-ink/10 text-ink-faint cursor-not-allowed"
+            )}
+          >
+            {generatingOptions
+              ? optionsProgress
+                ? `Generating (${optionsProgress.done}/${optionsProgress.total})…`
+                : "Generating…"
+              : "Generate answer choices"}
+          </button>
+
+          <button
+            onClick={handleBulkPublish}
+            disabled={!anySelected || generating || generatingOptions || publishing}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              anySelected && !generating && !generatingOptions && !publishing
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : "bg-ink/10 text-ink-faint cursor-not-allowed"
             )}
@@ -198,6 +250,11 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
               {p.hasSolution && (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700 font-medium">
                   Solution ready
+                </span>
+              )}
+              {p.hasOptions && (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-700 font-medium">
+                  Options ready
                 </span>
               )}
               <span className={cn(

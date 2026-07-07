@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { UserCircle } from "lucide-react";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
-import { HeaderSearchButton } from "@/components/HeaderSearchButton";
 import { NavDrawer } from "@/components/NavDrawer";
 
 export async function SiteHeader() {
@@ -22,16 +22,15 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b border-line bg-paper-raised">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <NavDrawer units={drawerUnits} />
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex min-w-0 items-center gap-2">
             <LadderMark />
-            <span className="font-serif text-lg text-ink">Problem Ladder</span>
+            <span className="truncate font-serif text-lg text-ink">Problem Ladder</span>
           </Link>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <HeaderSearchButton />
+        <nav className="flex shrink-0 items-center gap-4 text-sm">
           {profile ? (
             <>
               <Link href="/" className="text-ink-soft hover:text-accent">
@@ -40,16 +39,8 @@ export async function SiteHeader() {
               <Link href="/dashboard" className="text-ink-soft hover:text-accent">
                 Dashboard
               </Link>
-              <Link href="/profile" className="text-ink-soft hover:text-accent">
-                Profile
-              </Link>
-              {profile.role === "admin" && (
-                <Link href="/admin" className="text-ink-soft hover:text-accent">
-                  Admin
-                </Link>
-              )}
-              <Link href="/login" className="text-ink-soft hover:text-accent">
-                Sign out
+              <Link href="/profile" aria-label="Profile" className="text-ink-soft hover:text-accent">
+                <UserCircle className="h-5 w-5" />
               </Link>
             </>
           ) : (

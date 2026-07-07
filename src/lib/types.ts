@@ -45,6 +45,8 @@ export interface Problem {
   source: ProblemSource;
   source_url: string | null;
   source_notes: string | null;
+  options: string[] | null;
+  correct_option: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

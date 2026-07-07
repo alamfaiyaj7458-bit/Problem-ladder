@@ -255,6 +255,8 @@ export function SearchBar({
           <input
             ref={inputRef}
             type="text"
+            id="concept-search"
+            name="concept-search"
             value={query}
             autoFocus={autoFocus}
             onChange={(e) => setQuery(e.target.value)}

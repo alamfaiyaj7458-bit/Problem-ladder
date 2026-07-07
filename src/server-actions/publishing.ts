@@ -31,7 +31,7 @@ export async function revertToDraft(problemId: string) {
   revalidatePath("/admin/problems");
 }
 
-/** Publishing requires a non-empty solution — AI output is never published unreviewed. */
+/** Publishing requires a non-empty solution and a complete MCQ (>= 2 options, a marked correct one). */
 export async function publishProblem(problemId: string) {
   await requireAdmin();
   const supabase = await createClient();
@@ -44,6 +44,16 @@ export async function publishProblem(problemId: string) {
 
   if (!solution || !solution.content.trim()) {
     throw new Error("Add a solution before publishing this problem.");
+  }
+
+  const { data: problem } = await supabase
+    .from("problems")
+    .select("options, correct_option")
+    .eq("id", problemId)
+    .single();
+
+  if (!problem || !problem.options || problem.options.length < 2 || problem.correct_option === null) {
+    throw new Error("Add at least 2 answer choices and mark the correct one before publishing.");
   }
 
   const { error: problemError } = await supabase
@@ -90,12 +100,19 @@ export async function bulkPublish(problemIds: string[]) {
     .select("problem_id, content")
     .in("problem_id", problemIds);
 
-  const eligibleIds = (solutions ?? [])
-    .filter((s) => s.content?.trim())
-    .map((s) => s.problem_id);
+  const solvedIds = new Set((solutions ?? []).filter((s) => s.content?.trim()).map((s) => s.problem_id));
+
+  const { data: problems } = await supabase
+    .from("problems")
+    .select("id, options, correct_option")
+    .in("id", problemIds);
+
+  const eligibleIds = (problems ?? [])
+    .filter((p) => solvedIds.has(p.id) && p.options && p.options.length >= 2 && p.correct_option !== null)
+    .map((p) => p.id);
 
   if (eligibleIds.length === 0) {
-    throw new Error("None of the selected problems have a solution yet.");
+    throw new Error("None of the selected problems have both a solution and complete answer choices yet.");
   }
 
   const now = new Date().toISOString();

@@ -59,6 +59,8 @@ export async function POST(request: Request) {
       statement: p.statement,
       difficulty_score: Math.min(100, Math.max(0, p.difficulty_score)),
       tags: p.tags.map((t) => t.toLowerCase().trim()),
+      options: p.options,
+      correct_option: p.correct_option,
       status: "draft" as const,
       source: "ai_generated" as const,
       created_by: profile.id

@@ -3,15 +3,20 @@
 /**
  * SolutionRenderer
  *
- * Renders AI solution text. Delegates all Markdown + KaTeX rendering
- * to MathContent (single source of truth). Adds solution-specific UI:
- * section headers, answer card, takeaway card.
+ * Renders flowing prose + display equations produced by the solution prompt.
+ * The AI no longer uses ## headings — solutions read as continuous derivations.
+ * This renderer is tuned for that format: generous line height, centered
+ * equations with breathing room, a prominent answer card, a quiet takeaway.
  */
 
-import React, { type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
+import rehypeKatex from "rehype-katex";
+import type { Components } from "react-markdown";
 import { MathContent } from "@/components/MathContent";
 
-// ─── Pre-processor ────────────────────────────────────────────────────────────
+// ─── Pre-processor ─────────────────────────────────────────────────────────────
 
 function preprocess(raw: string): {
   body: string;
@@ -33,36 +38,26 @@ function preprocess(raw: string): {
       takeaway = line.replace(/^TAKEAWAY:\s*/i, "").trim();
       continue;
     }
+    // Strip LaTeX array environments that don't render
     if (/\\begin\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) {
-      inArray = true;
-      continue;
+      inArray = true; continue;
     }
     if (inArray) {
       if (/\\end\{(array|tabular|matrix|pmatrix|bmatrix)/.test(line)) inArray = false;
       continue;
     }
-
-    // Defensive fix: malformed "###(label)" or "##(label)" with no space after
-    // the hashes is not valid Markdown — strip the leading hashes so it
-    // renders as plain text instead of being silently absorbed into a paragraph.
+    // Strip malformed hash patterns like "###(label)" — no space after #
     line = line.replace(/^#{1,6}(?=\S)/, "");
-
     body.push(line);
   }
 
-  // Defensive fix: ensure every $$ ... $$ display-math block is properly
-  // separated by blank lines so remark-math always parses it as a block,
-  // never merged with adjacent text or another equation.
-  // We track open/close state rather than blindly regex-replacing "$$",
-  // since "$$" can never be treated as a literal in a JS replacement string
-  // (it is a special back-reference token there).
+  // Ensure every $$ block is properly delimited on its own line with
+  // blank lines around it. Track open/close state to avoid the JS
+  // replacement-string "$$" footgun (which collapses $$ to a single $).
   const normalized: string[] = [];
   let mathOpen = false;
 
   for (const line of body) {
-    // A line may contain $$ as: pure delimiter ("$$"), opening with content
-    // ("$$ x = 1"), closing with content ("x = 1 $$"), or self-contained
-    // ("$$ x = 1 $$"). Handle each case explicitly.
     const trimmed = line.trim();
 
     if (trimmed === "$$") {
@@ -70,140 +65,48 @@ function preprocess(raw: string): {
       mathOpen = !mathOpen;
       continue;
     }
-
     if (!mathOpen && trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4) {
-      // Self-contained single-line block: $$ math $$
       normalized.push("", trimmed, "");
       continue;
     }
-
     if (!mathOpen && trimmed.startsWith("$$")) {
-      // Opens here, content follows on this same line
       normalized.push("", "$$", trimmed.slice(2).trim());
       mathOpen = true;
       continue;
     }
-
     if (mathOpen && trimmed.endsWith("$$")) {
-      // Closes here, content precedes on this same line
       normalized.push(trimmed.slice(0, -2).trim(), "$$", "");
       mathOpen = false;
       continue;
     }
-
     normalized.push(line);
   }
 
-  let joined = normalized.join("\n").replace(/\n{3,}/g, "\n\n");
-
+  const joined = normalized.join("\n").replace(/\n{3,}/g, "\n\n");
   return { body: joined, finalAnswer, takeaway };
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── Component map ─────────────────────────────────────────────────────────────
+// Tuned for flowing derivation text — no section headers needed.
 
-const SECTION_META: Record<string, { icon: string; color: string }> = {
-  idea:           { icon: "💡", color: "text-amber-600" },
-  observation:    { icon: "🔍", color: "text-blue-600" },
-  method:         { icon: "⚙️", color: "text-slate-600" },
-  setup:          { icon: "📐", color: "text-slate-600" },
-  proof:          { icon: "✏️", color: "text-slate-600" },
-  claim:          { icon: "📌", color: "text-slate-600" },
-  note:           { icon: "📝", color: "text-slate-500" },
-  "key takeaway": { icon: "💡", color: "text-amber-600" },
-  "final answer": { icon: "✓",  color: "text-green-700" },
-};
-
-function SectionHeader({ text }: { text: string }) {
-  const lower = text.toLowerCase().trim();
-  const stepMatch = text.match(/^(Step\s+\d+)\s*[:\-·]?\s*(.*)/i);
-  const isStep = !!stepMatch;
-
-  let icon: string | null = null;
-  let color = "text-accent";
-
-  if (isStep) {
-    color = "text-accent";
-  } else {
-    for (const [key, val] of Object.entries(SECTION_META)) {
-      if (lower.startsWith(key)) { icon = val.icon; color = val.color; break; }
-    }
-  }
-
-  return (
-    <div className="mt-10 mb-4 first:mt-0">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="h-px flex-1 bg-line" />
-        <span className="text-xs font-mono uppercase tracking-widest text-ink-faint px-1">
-          {isStep ? (stepMatch?.[1] ?? "").toUpperCase() : (icon ? `${icon} ` : "") + text}
-        </span>
-        <div className="h-px flex-1 bg-line" />
-      </div>
-      {isStep && stepMatch?.[2] && (
-        <h3 className={`font-serif text-base font-semibold ${color}`}>{stepMatch[2]}</h3>
-      )}
-      {!isStep && (
-        <h3 className={`font-serif text-base font-semibold ${color}`}>
-          {icon ? `${icon} ` : ""}{text}
-        </h3>
-      )}
-    </div>
-  );
-}
-
-// ─── Answer card ──────────────────────────────────────────────────────────────
-
-function AnswerCard({ content }: { content: string }) {
-  return (
-    <div className="mt-10 rounded-xl border-2 border-accent/30 bg-accent/[0.03] overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-accent/20 bg-accent/[0.05] px-5 py-2.5">
-        <span className="text-sm font-semibold text-accent">Final Answer</span>
-      </div>
-      <div className="px-5 py-5 solution-answer">
-        <MathContent mode="compact" className="font-serif text-xl text-ink">
-          {content}
-        </MathContent>
-      </div>
-    </div>
-  );
-}
-
-// ─── Takeaway card ────────────────────────────────────────────────────────────
-
-function TakeawayCard({ content }: { content: string }) {
-  return (
-    <div className="mt-6 flex gap-3 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-4">
-      <span className="mt-0.5 text-lg leading-none">💡</span>
-      <div>
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-amber-700">
-          Key Takeaway
-        </p>
-        <div className="text-sm leading-relaxed text-amber-900">
-          <MathContent mode="compact">{content}</MathContent>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Override heading components to use SectionHeader ────────────────────────
-// We post-process by replacing h1/h2 with SectionHeader.
-// MathContent handles all other elements.
-
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import remarkGfm from "remark-gfm";
-import rehypeKatex from "rehype-katex";
-import type { Components } from "react-markdown";
-
-const solutionComponents: Components = {
-  h1: ({ children }) => <SectionHeader text={String(children)} />,
-  h2: ({ children }) => <SectionHeader text={String(children)} />,
+const components: Components = {
+  // If the AI still produces a heading (older stored solutions), render it
+  // cleanly but without the heavy SectionHeader treatment.
+  h1: ({ children }) => (
+    <p className="mt-8 mb-2 font-serif text-base font-semibold text-ink-soft">{children}</p>
+  ),
+  h2: ({ children }) => (
+    <p className="mt-8 mb-2 font-serif text-base font-semibold text-ink-soft">{children}</p>
+  ),
   h3: ({ children }) => (
-    <h4 className="mt-6 mb-2 font-serif text-sm font-semibold text-ink">{children}</h4>
+    <p className="mt-5 mb-1 font-serif text-sm font-semibold text-ink-soft">{children}</p>
   ),
+
+  // Prose paragraphs — comfortable reading size, generous leading
   p: ({ children }) => (
-    <p className="my-3 text-base leading-[1.85] text-ink first:mt-0 last:mb-0">{children}</p>
+    <p className="my-4 text-[1.05rem] leading-[1.9] text-ink">{children}</p>
   ),
+
   ul: ({ children }) => (
     <ul className="my-3 space-y-1.5 pl-5 list-disc marker:text-ink-faint">{children}</ul>
   ),
@@ -211,34 +114,43 @@ const solutionComponents: Components = {
     <ol className="my-3 space-y-1.5 pl-5 list-decimal marker:text-ink-faint">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="text-base leading-relaxed text-ink pl-1">{children}</li>
+    <li className="text-[1.05rem] leading-relaxed text-ink pl-1">{children}</li>
   ),
-  strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
-  em: ({ children }) => <em className="italic text-ink-soft">{children}</em>,
-  blockquote: ({ children }) => (
-    <div className="my-4 flex gap-3 rounded-r-lg border-l-4 border-accent/40 bg-accent/[0.03] px-4 py-3">
-      <div className="text-sm leading-relaxed text-ink-soft italic">{children}</div>
-    </div>
+
+  strong: ({ children }) => (
+    <strong className="font-semibold text-ink">{children}</strong>
   ),
+  em: ({ children }) => (
+    <em className="italic text-ink-soft">{children}</em>
+  ),
+
   hr: () => (
-    <div className="my-8 flex items-center gap-3">
-      <div className="h-px flex-1 bg-line" />
-      <div className="h-1 w-1 rounded-full bg-ink-faint" />
-      <div className="h-px flex-1 bg-line" />
+    <div className="my-8 border-t border-line" />
+  ),
+
+  blockquote: ({ children }) => (
+    <div className="my-4 border-l-2 border-ink/20 pl-4 text-[1.05rem] italic text-ink-soft">
+      {children}
     </div>
   ),
+
   table: ({ children }) => (
     <div className="my-5 overflow-x-auto rounded-lg border border-line">
       <table className="w-full text-sm text-ink">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-ink/[0.03] border-b border-line">{children}</thead>,
+  thead: ({ children }) => (
+    <thead className="bg-ink/[0.03] border-b border-line">{children}</thead>
+  ),
   tbody: ({ children }) => <tbody className="divide-y divide-line">{children}</tbody>,
   tr: ({ children }) => <tr>{children}</tr>,
   th: ({ children }) => (
-    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint">{children}</th>
+    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint">
+      {children}
+    </th>
   ),
   td: ({ children }) => <td className="px-4 py-2.5 text-sm text-ink">{children}</td>,
+
   code: ({ children, className }) => {
     const lang = className?.replace("language-", "");
     if (lang || (typeof children === "string" && String(children).includes("\n"))) {
@@ -255,12 +167,50 @@ const solutionComponents: Components = {
         </div>
       );
     }
-    return <code className="rounded bg-ink/[0.06] px-1.5 py-0.5 font-mono text-xs text-ink">{children}</code>;
+    return (
+      <code className="rounded bg-ink/[0.06] px-1.5 py-0.5 font-mono text-xs text-ink">
+        {children}
+      </code>
+    );
   },
   pre: ({ children }) => <>{children}</>,
 };
 
-// ─── Root export ──────────────────────────────────────────────────────────────
+// ─── Answer card ───────────────────────────────────────────────────────────────
+
+function AnswerCard({ content }: { content: string }) {
+  return (
+    <div className="mt-10 rounded-xl border border-accent/30 bg-accent/[0.03] overflow-hidden">
+      <div className="border-b border-accent/20 bg-accent/[0.04] px-5 py-2.5">
+        <span className="text-xs font-semibold uppercase tracking-widest text-accent">
+          Answer
+        </span>
+      </div>
+      <div className="px-6 py-5 solution-answer">
+        <MathContent mode="compact" className="font-serif text-xl text-ink">
+          {content}
+        </MathContent>
+      </div>
+    </div>
+  );
+}
+
+// ─── Takeaway ──────────────────────────────────────────────────────────────────
+
+function TakeawayBlock({ content }: { content: string }) {
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-paper px-5 py-4">
+      <p className="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Key insight
+      </p>
+      <div className="text-sm italic leading-relaxed text-ink-soft">
+        <MathContent mode="compact">{content}</MathContent>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root ──────────────────────────────────────────────────────────────────────
 
 export function SolutionRenderer({ content }: { content: string }) {
   const { body, finalAnswer, takeaway } = preprocess(content);
@@ -270,13 +220,13 @@ export function SolutionRenderer({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm]}
         rehypePlugins={[rehypeKatex]}
-        components={solutionComponents}
+        components={components}
       >
         {body}
       </ReactMarkdown>
 
       {finalAnswer && <AnswerCard content={finalAnswer} />}
-      {takeaway && <TakeawayCard content={takeaway} />}
+      {takeaway && <TakeawayBlock content={takeaway} />}
     </div>
   );
 }

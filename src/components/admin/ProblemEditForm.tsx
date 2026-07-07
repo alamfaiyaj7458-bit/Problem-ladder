@@ -5,18 +5,47 @@ import { useRouter } from "next/navigation";
 import { updateProblem } from "@/server-actions/problems";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Label, Card } from "@/components/ui/Field";
+import { McqOptionsEditor } from "@/components/admin/McqOptionsEditor";
 import { DIFFICULTY_LABEL, scoreToLevel } from "@/lib/difficulty";
 import type { Problem } from "@/lib/types";
 
-export function ProblemEditForm({ problem }: { problem: Problem }) {
+export function ProblemEditForm({ problem, solutionContent }: { problem: Problem; solutionContent?: string | null }) {
   const router = useRouter();
   const [title, setTitle] = useState(problem.title);
   const [statement, setStatement] = useState(problem.statement);
   const [difficultyScore, setDifficultyScore] = useState(problem.difficulty_score);
   const [tags, setTags] = useState(problem.tags.join(", "));
   const [sourceNotes, setSourceNotes] = useState(problem.source_notes ?? "");
+  const [options, setOptions] = useState<string[]>(() => {
+    const base = problem.options ?? [];
+    return [0, 1, 2, 3].map((i) => base[i] ?? "");
+  });
+  const [correctIndex, setCorrectIndex] = useState<number | null>(problem.correct_option);
+  const [suggestingOptions, setSuggestingOptions] = useState(false);
+  const [suggestOptionsError, setSuggestOptionsError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function handleSuggestOptions() {
+    setSuggestingOptions(true);
+    setSuggestOptionsError(null);
+    try {
+      const res = await fetch("/api/ai/suggest-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, statement, solutionContent: solutionContent ?? undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not suggest options");
+
+      setOptions([0, 1, 2, 3].map((i) => data.options[i] ?? ""));
+      setCorrectIndex(data.correct_option);
+    } catch (err) {
+      setSuggestOptionsError((err as Error).message);
+    } finally {
+      setSuggestingOptions(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -67,6 +96,22 @@ export function ProblemEditForm({ problem }: { problem: Problem }) {
           <Label>Tags (comma-separated)</Label>
           <Input name="tags" value={tags} onChange={(e) => setTags(e.target.value)} />
         </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" size="sm" onClick={handleSuggestOptions} disabled={suggestingOptions}>
+              {suggestingOptions ? "Solving & writing choices..." : "Suggest answer choices"}
+            </Button>
+            {suggestOptionsError && <p className="text-xs text-level-master">{suggestOptionsError}</p>}
+          </div>
+          <McqOptionsEditor
+            options={options}
+            correctIndex={correctIndex}
+            onChange={setOptions}
+            onCorrectIndexChange={setCorrectIndex}
+          />
+        </div>
+
         <div>
           <Label>Source notes (admin-only)</Label>
           <Textarea

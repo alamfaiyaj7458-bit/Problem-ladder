@@ -200,6 +200,8 @@ export function NavDrawer({ units }: { units: Unit[] }) {
             <input
               ref={searchRef}
               type="text"
+              id="drawer-search"
+              name="drawer-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {

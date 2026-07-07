@@ -23,7 +23,7 @@ export default async function ReviewQueuePage({
 
   let query = supabase
     .from("problems")
-    .select("id, title, status, chapter_id, chapters(unit_id, units(id, name))")
+    .select("id, title, status, chapter_id, options, correct_option, chapters(unit_id, units(id, name))")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -57,7 +57,8 @@ export default async function ReviewQueuePage({
     id: p.id,
     title: p.title,
     status: p.status,
-    hasSolution: solutionMap.get(p.id) ?? false
+    hasSolution: solutionMap.get(p.id) ?? false,
+    hasOptions: !!(p.options && Array.isArray(p.options) && p.options.length >= 2 && p.correct_option !== null)
   }));
 
   return (
