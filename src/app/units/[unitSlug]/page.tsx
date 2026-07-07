@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Field";
 import { BackLink } from "@/components/BackLink";
 
-export const revalidate = 0;
+export const revalidate = 300;
 
 export default async function UnitPage({ params }: { params: Promise<{ unitSlug: string }> }) {
   const { unitSlug } = await params;

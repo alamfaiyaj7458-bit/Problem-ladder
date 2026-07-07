@@ -14,12 +14,16 @@ export default async function ProblemPage({ params }: { params: Promise<{ proble
   const { problemId } = await params;
   const supabase = await createClient();
 
-  const { data: problem } = await supabase
-    .from("problems")
-    .select("id, chapter_id, title, statement, difficulty_level, difficulty_score, tags, status, options, correct_option, chapters(name, slug, units(name, slug))")
-    .eq("id", problemId)
-    .eq("status", "published")
-    .single();
+  // Phase 1: fetch problem and profile in parallel (no dependencies between them)
+  const [{ data: problem }, profile] = await Promise.all([
+    supabase
+      .from("problems")
+      .select("id, chapter_id, title, statement, difficulty_level, difficulty_score, tags, status, options, correct_option, chapters(name, slug, units(name, slug))")
+      .eq("id", problemId)
+      .eq("status", "published")
+      .single(),
+    getCurrentProfile(),
+  ]);
 
   if (!problem) notFound();
 
@@ -27,21 +31,32 @@ export default async function ProblemPage({ params }: { params: Promise<{ proble
     chapters: { name: string; slug: string; units: { name: string; slug: string } };
   }).chapters;
 
-  const { data: solution } = await supabase
-    .from("solutions")
-    .select("content")
-    .eq("problem_id", problem.id)
-    .eq("status", "published")
-    .maybeSingle();
+  const chapterId = (problem as unknown as { chapter_id: string }).chapter_id ?? "";
 
-  // All published siblings in the same chapter + same difficulty level, sorted by score
-  const { data: siblings } = await supabase
-    .from("problems")
-    .select("id, title, difficulty_level, difficulty_score, tags")
-    .eq("chapter_id", (problem as unknown as { chapter_id: string }).chapter_id ?? "")
-    .eq("status", "published")
-    .eq("difficulty_level", problem.difficulty_level)
-    .order("difficulty_score", { ascending: true });
+  // Phase 2: fetch solution, siblings, and submission all in parallel
+  const [{ data: solution }, { data: siblings }, submissionResult] = await Promise.all([
+    supabase
+      .from("solutions")
+      .select("content")
+      .eq("problem_id", problem.id)
+      .eq("status", "published")
+      .maybeSingle(),
+    supabase
+      .from("problems")
+      .select("id, title, difficulty_level, difficulty_score, tags")
+      .eq("chapter_id", chapterId)
+      .eq("status", "published")
+      .eq("difficulty_level", problem.difficulty_level)
+      .order("difficulty_score", { ascending: true }),
+    profile
+      ? supabase
+          .from("user_submissions")
+          .select("id")
+          .eq("user_id", profile.id)
+          .eq("problem_id", problem.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   // Separate current from others; find the next one in sorted order
   const others = (siblings ?? []).filter((p) => p.id !== problem.id);
@@ -49,18 +64,7 @@ export default async function ProblemPage({ params }: { params: Promise<{ proble
   const nextProblem = currentIndex >= 0 ? (siblings ?? [])[currentIndex + 1] ?? null : null;
   const prevProblem = currentIndex > 0 ? (siblings ?? [])[currentIndex - 1] ?? null : null;
 
-  // Check if the signed-in user has already solved this problem
-  const profile = await getCurrentProfile();
-  let alreadySolved = false;
-  if (profile) {
-    const { data: submission } = await supabase
-      .from("user_submissions")
-      .select("id")
-      .eq("user_id", profile.id)
-      .eq("problem_id", problem.id)
-      .maybeSingle();
-    alreadySolved = !!submission;
-  }
+  const alreadySolved = !!submissionResult?.data;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">

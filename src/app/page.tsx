@@ -3,25 +3,24 @@ import { createClient } from "@/lib/supabase/server";
 import { SearchBar } from "@/components/SearchBar";
 import { Card } from "@/components/ui/Field";
 
-export const revalidate = 0;
+export const revalidate = 300; // units/chapters/problems change infrequently
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const { data: units } = await supabase
-    .from("units")
-    .select("id, name, slug, description, chapters(id)")
-    .order("sort_order");
-
-  const { data: chaptersRaw } = await supabase
-    .from("chapters")
-    .select("id, name, slug, unit_id, units(name, slug)");
-
-  const { data: problemsRaw } = await supabase
-    .from("problems")
-    .select("id, title, difficulty_level, chapter_id, chapters(name, slug, units(name, slug))")
-    .eq("status", "published")
-    .order("difficulty_score", { ascending: true });
+  // Run all three independent queries in parallel
+  const [
+    { data: units },
+    { data: chaptersRaw },
+    { data: problemsRaw },
+  ] = await Promise.all([
+    supabase.from("units").select("id, name, slug, description, chapters(id)").order("sort_order"),
+    supabase.from("chapters").select("id, name, slug, unit_id, units(name, slug)"),
+    supabase.from("problems")
+      .select("id, title, difficulty_level, chapter_id, chapters(name, slug, units(name, slug))")
+      .eq("status", "published")
+      .order("difficulty_score", { ascending: true }),
+  ]);
 
   const searchUnits = (units ?? []).map((u) => ({
     id: u.id,
