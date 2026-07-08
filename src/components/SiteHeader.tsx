@@ -30,17 +30,17 @@ export async function SiteHeader() {
             <span className="truncate font-serif text-lg text-ink">Problem Ladder</span>
           </Link>
         </div>
-        <nav className="flex shrink-0 items-center gap-5 text-sm">
+        <nav className="flex shrink-0 items-center gap-3 text-sm">
           {profile ? (
             <>
               <Link href="/" aria-label="Home" className="text-ink-soft hover:text-accent transition-colors">
-                <Home className="h-5 w-5" />
+                <Home className="h-4 w-4" />
               </Link>
               <Link href="/dashboard" aria-label="Dashboard" className="text-ink-soft hover:text-accent transition-colors">
-                <LayoutDashboard className="h-5 w-5" />
+                <LayoutDashboard className="h-4 w-4" />
               </Link>
               <Link href="/profile" aria-label="Profile" className="text-ink-soft hover:text-accent transition-colors">
-                <UserCircle className="h-5 w-5" />
+                <UserCircle className="h-4 w-4" />
               </Link>
             </>
           ) : (
