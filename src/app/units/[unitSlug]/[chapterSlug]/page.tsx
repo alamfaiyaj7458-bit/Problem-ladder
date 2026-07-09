@@ -22,43 +22,45 @@ export default async function ChapterPage({
   const { level: levelParam } = await searchParams;
   const supabase = await createClient();
 
-  const { data: unit } = await supabase
-    .from("units")
-    .select("id, name, slug")
-    .eq("slug", unitSlug)
-    .single();
-  if (!unit) notFound();
+  // Phase 1: fetch unit+chapter (joined) and profile in parallel
+  const [unitResult, profile] = await Promise.all([
+    supabase
+      .from("units")
+      .select("id, name, slug, chapters!inner(id, name, slug, description)")
+      .eq("slug", unitSlug)
+      .eq("chapters.slug", chapterSlug)
+      .single(),
+    getCurrentProfile(),
+  ]);
 
-  const { data: chapter } = await supabase
-    .from("chapters")
-    .select("id, name, slug, description")
-    .eq("unit_id", unit.id)
-    .eq("slug", chapterSlug)
-    .single();
+  if (!unitResult.data) notFound();
+  const unit = unitResult.data;
+  const chapter = (unit as unknown as {
+    chapters: { id: string; name: string; slug: string; description: string | null }[];
+  }).chapters?.[0];
   if (!chapter) notFound();
 
-  const { data: published } = await supabase
-    .from("problems")
-    .select("id, title, difficulty_level, difficulty_score, tags")
-    .eq("chapter_id", chapter.id)
-    .eq("status", "published")
-    .order("difficulty_score", { ascending: true });
+  // Phase 2: fetch problems and user submissions in parallel
+  const [{ data: published }, submissionsResult] = await Promise.all([
+    supabase
+      .from("problems")
+      .select("id, title, difficulty_level, difficulty_score, tags")
+      .eq("chapter_id", chapter.id)
+      .eq("status", "published")
+      .order("difficulty_score", { ascending: true }),
+    profile
+      ? supabase
+          .from("user_submissions")
+          .select("problem_id, problems!inner(chapter_id)")
+          .eq("user_id", profile.id)
+          .eq("is_correct", true)
+          .eq("problems.chapter_id", chapter.id)
+      : Promise.resolve({ data: null }),
+  ]);
 
-  // Fetch which problems this user has already solved
-  const profile = await getCurrentProfile();
-  const solvedSet = new Set<string>();
-  if (profile) {
-    const problemIds = (published ?? []).map((p) => p.id);
-    if (problemIds.length > 0) {
-      const { data: submissions } = await supabase
-        .from("user_submissions")
-        .select("problem_id")
-        .eq("user_id", profile.id)
-        .eq("is_correct", true)
-        .in("problem_id", problemIds);
-      (submissions ?? []).forEach((s) => solvedSet.add(s.problem_id));
-    }
-  }
+  const solvedSet = new Set<string>(
+    (submissionsResult.data ?? []).map((s) => s.problem_id)
+  );
 
   const counts: Partial<Record<DifficultyLevel, number>> = {};
   for (const level of VALID_LEVELS) {
