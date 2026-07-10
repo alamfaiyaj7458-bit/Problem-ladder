@@ -116,6 +116,8 @@ export function SearchBar({
   const [focused, setFocused] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [apiProblems, setApiProblems] = useState<ProblemData[]>([]);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +135,34 @@ export function SearchBar({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Debounced API fetch for problems (replaces the large upfront payload)
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setApiProblems([]); setSearching(false); return; }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((data: Array<{
+          id: string; title: string; difficulty_level: string;
+          chapters: { name: string; slug: string; units: { name: string; slug: string } } | null;
+        }>) => {
+          setApiProblems(data.map((p) => ({
+            id: p.id,
+            title: p.title,
+            difficultyLevel: p.difficulty_level,
+            chapterName: p.chapters?.name ?? "",
+            unitName: p.chapters?.units?.name ?? "",
+            chapterSlug: p.chapters?.slug ?? "",
+            unitSlug: p.chapters?.units?.slug ?? "",
+          })));
+        })
+        .catch(() => setApiProblems([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Live search — memoised
   const results = useMemo((): ResultItem[] => {
@@ -167,8 +197,8 @@ export function SearchBar({
       }
     }
 
-    // Problems
-    for (const p of problems) {
+    // Problems — from debounced API fetch
+    for (const p of apiProblems) {
       if (p.title.toLowerCase().includes(q)) {
         items.push({
           type: "problem",
@@ -181,7 +211,7 @@ export function SearchBar({
     }
 
     return items;
-  }, [query, units, chapters, problems]);
+  }, [query, units, chapters, apiProblems]);
 
   // Group by type for display
   const grouped = useMemo(() => {
@@ -315,7 +345,15 @@ export function SearchBar({
           ))}
 
           {/* ── No results ── */}
-          {noResults && (
+          {/* ── Searching indicator ── */}
+          {searching && (
+            <div className="flex items-center gap-2 px-4 py-3 text-xs text-ink-faint">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+              Searching problems…
+            </div>
+          )}
+
+          {noResults && !searching && (
             <div className="px-4 py-6 text-center">
               <p className="text-sm text-ink-soft">No results found.</p>
               <p className="mt-1 text-xs text-ink-faint">

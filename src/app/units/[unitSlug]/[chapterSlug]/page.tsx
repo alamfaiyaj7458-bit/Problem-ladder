@@ -1,19 +1,37 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient, getCurrentProfile } from "@/lib/supabase/server";
+import { createClient as createAnonClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { LadderSwitcher } from "@/components/DifficultyBadge";
-import { ProblemCard } from "@/components/ProblemCard";
+import { ProblemList } from "@/components/ProblemList";
 import { DIFFICULTY_LABEL } from "@/lib/difficulty";
 import { BackLink } from "@/components/BackLink";
 import type { DifficultyLevel } from "@/lib/types";
 
-export const revalidate = 0;
+export const revalidate = 300;
 
 const VALID_LEVELS: DifficultyLevel[] = ["beginner", "intermediate", "advanced", "expert", "master"];
 
+// Pre-render every chapter at build time — served from CDN, no DB hit on load
+export async function generateStaticParams() {
+  const supabase = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const { data } = await supabase
+    .from("chapters")
+    .select("slug, units(slug)");
+  return (data ?? [])
+    .map((ch) => ({
+      unitSlug: (ch as unknown as { units: { slug: string } }).units?.slug ?? "",
+      chapterSlug: ch.slug,
+    }))
+    .filter((p) => p.unitSlug);
+}
+
 export default async function ChapterPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ unitSlug: string; chapterSlug: string }>;
   searchParams: Promise<{ level?: string }>;
@@ -22,15 +40,14 @@ export default async function ChapterPage({
   const { level: levelParam } = await searchParams;
   const supabase = await createClient();
 
-  // Phase 1: fetch unit+chapter (joined) and profile in parallel
-  const [unitResult, profile] = await Promise.all([
+  // Phase 1: unit+chapter joined
+  const [unitResult] = await Promise.all([
     supabase
       .from("units")
       .select("id, name, slug, chapters!inner(id, name, slug, description)")
       .eq("slug", unitSlug)
       .eq("chapters.slug", chapterSlug)
       .single(),
-    getCurrentProfile(),
   ]);
 
   if (!unitResult.data) notFound();
@@ -40,31 +57,19 @@ export default async function ChapterPage({
   }).chapters?.[0];
   if (!chapter) notFound();
 
-  // Phase 2: fetch problems and user submissions in parallel
-  const [{ data: published }, submissionsResult] = await Promise.all([
-    supabase
-      .from("problems")
-      .select("id, title, difficulty_level, difficulty_score, tags")
-      .eq("chapter_id", chapter.id)
-      .eq("status", "published")
-      .order("difficulty_score", { ascending: true }),
-    profile
-      ? supabase
-          .from("user_submissions")
-          .select("problem_id, problems!inner(chapter_id)")
-          .eq("user_id", profile.id)
-          .eq("is_correct", true)
-          .eq("problems.chapter_id", chapter.id)
-      : Promise.resolve({ data: null }),
-  ]);
+  // Phase 2: problems filtered directly by this chapter's id
+  const { data: published } = await supabase
+    .from("problems")
+    .select("id, title, difficulty_level, difficulty_score, tags")
+    .eq("chapter_id", chapter.id)
+    .eq("status", "published")
+    .order("difficulty_score", { ascending: true });
 
-  const solvedSet = new Set<string>(
-    (submissionsResult.data ?? []).map((s) => s.problem_id)
-  );
+  const chapterProblems = published ?? [];
 
   const counts: Partial<Record<DifficultyLevel, number>> = {};
   for (const level of VALID_LEVELS) {
-    counts[level] = (published ?? []).filter((p) => p.difficulty_level === level).length;
+    counts[level] = chapterProblems.filter((p) => p.difficulty_level === level).length;
   }
 
   const selectedLevel =
@@ -73,20 +78,16 @@ export default async function ChapterPage({
       : undefined;
 
   const visibleProblems = selectedLevel
-    ? (published ?? []).filter((p) => p.difficulty_level === selectedLevel)
+    ? chapterProblems.filter((p) => p.difficulty_level === selectedLevel)
     : [];
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <BackLink href={`/units/${unitSlug}`} label={unit.name} />
       <p className="mt-4 text-sm text-ink-faint">
-        <Link href="/" className="hover:text-accent">
-          Problem Ladder
-        </Link>
+        <Link href="/" className="hover:text-accent">Problem Ladder</Link>
         {" / "}
-        <Link href={`/units/${unit.slug}`} className="hover:text-accent">
-          {unit.name}
-        </Link>
+        <Link href={`/units/${unit.slug}`} className="hover:text-accent">{unit.name}</Link>
         {" / "}
         {chapter.name}
       </p>
@@ -112,11 +113,17 @@ export default async function ChapterPage({
           </p>
         )}
         {selectedLevel && visibleProblems.length > 0 && (
-          <div className="grid gap-3">
-            {visibleProblems.map((p) => (
-              <ProblemCard key={p.id} id={p.id} title={p.title} level={p.difficulty_level} score={p.difficulty_score} tags={p.tags} solved={solvedSet.has(p.id)} />
-            ))}
-          </div>
+          /* ProblemList is a client component — fetches solved status after mount
+             so the static shell above can be cached and served from CDN */
+          <ProblemList
+            problems={visibleProblems as unknown as {
+              id: string; title: string;
+              difficulty_level: DifficultyLevel;
+              difficulty_score: number;
+              tags: string[] | null;
+            }[]}
+            chapterId={chapter.id}
+          />
         )}
       </div>
     </main>

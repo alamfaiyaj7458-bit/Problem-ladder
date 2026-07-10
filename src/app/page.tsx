@@ -8,18 +8,10 @@ export const revalidate = 300; // units/chapters/problems change infrequently
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Run all three independent queries in parallel
-  const [
-    { data: units },
-    { data: chaptersRaw },
-    { data: problemsRaw },
-  ] = await Promise.all([
+  // Only two queries needed — problems are now fetched on demand via /api/search
+  const [{ data: units }, { data: chaptersRaw }] = await Promise.all([
     supabase.from("units").select("id, name, slug, description, chapters(id)").order("sort_order"),
     supabase.from("chapters").select("id, name, slug, unit_id, units(name, slug)"),
-    supabase.from("problems")
-      .select("id, title, difficulty_level, chapter_id, chapters(name, slug, units(name, slug))")
-      .eq("status", "published")
-      .order("difficulty_score", { ascending: true }),
   ]);
 
   const searchUnits = (units ?? []).map((u) => ({
@@ -40,19 +32,6 @@ export default async function HomePage() {
     };
   });
 
-  const searchProblems = (problemsRaw ?? []).map((p) => {
-    const ch = (p as unknown as { chapters: { name: string; slug: string; units: { name: string; slug: string } } }).chapters;
-    return {
-      id: p.id,
-      title: p.title,
-      difficultyLevel: p.difficulty_level as string,
-      chapterName: ch?.name ?? "",
-      unitName: ch?.units?.name ?? "",
-      chapterSlug: ch?.slug ?? "",
-      unitSlug: ch?.units?.slug ?? "",
-    };
-  });
-
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <section className="mx-auto max-w-2xl text-center">
@@ -63,7 +42,7 @@ export default async function HomePage() {
           Search by concept, pick a chapter, choose your level, and solve.
         </p>
         <div className="mt-8">
-          <SearchBar autoFocus units={searchUnits} chapters={searchChapters} problems={searchProblems} />
+          <SearchBar autoFocus units={searchUnits} chapters={searchChapters} />
         </div>
       </section>
 

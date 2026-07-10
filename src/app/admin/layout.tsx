@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";

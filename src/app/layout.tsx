@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Lora, IBM_Plex_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import "./globals.css";
-import "katex/dist/katex.min.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
