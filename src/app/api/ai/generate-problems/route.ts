@@ -7,6 +7,9 @@ import type { DifficultyLevel } from "@/lib/types";
 
 const VALID_LEVELS: DifficultyLevel[] = ["beginner", "intermediate", "advanced", "expert", "master"];
 
+export const runtime = "edge";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   let profile;
   try {

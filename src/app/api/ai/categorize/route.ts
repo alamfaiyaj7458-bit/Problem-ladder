@@ -5,6 +5,9 @@ import { categorizeResponseSchema, categorizeZodSchema } from "@/lib/gemini/sche
 import { categorizePrompt } from "@/lib/gemini/prompts";
 import { scoreToLevel } from "@/lib/difficulty";
 
+export const runtime = "edge";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     await requireAdmin();

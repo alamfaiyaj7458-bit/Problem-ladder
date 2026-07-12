@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 
 const BASE_SYSTEM = `You are a math tutor. Give a single, complete, self-contained hint that nudges the student toward the right approach without revealing the answer or full solution steps. Write exactly one paragraph of 2-4 sentences. Plain text only, no markdown, no LaTeX. Always finish your sentence — never cut off mid-thought.`;
 
+export const runtime = "edge";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // Any signed-in user can request a hint
   const supabase = await createClient();

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient, requireAdmin } from "@/lib/supabase/server";
 import { findSimilarProblems } from "@/lib/duplicate-detection";
 
+export const runtime = "edge";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     await requireAdmin();

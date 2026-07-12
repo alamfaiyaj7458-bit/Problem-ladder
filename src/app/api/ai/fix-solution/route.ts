@@ -4,6 +4,9 @@ import { generateStructured } from "@/lib/gemini/client";
 import { fixSolutionResponseSchema, fixSolutionZodSchema } from "@/lib/gemini/schemas";
 import { fixSolutionPrompt } from "@/lib/gemini/prompts";
 
+export const runtime = "edge";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     await requireAdmin();
