@@ -53,27 +53,33 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
     setMessage(null);
     setGenProgress({ done: 0, total: ids.length });
 
-    try {
-      const res = await fetch("/api/ai/bulk-generate-solutions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemIds: ids })
-      });
-      const data = await res.json();
-      const failed = (data.results as { ok: boolean }[]).filter((r) => !r.ok).length;
-      setMessage({
-        text: failed === 0
-          ? `Solutions generated for all ${ids.length} problems.`
-          : `Done — ${ids.length - failed} succeeded, ${failed} failed.`,
-        ok: failed === 0
-      });
-      setGenProgress({ done: ids.length, total: ids.length });
-    } catch {
-      setMessage({ text: "Generation failed — check the console.", ok: false });
-    } finally {
-      setGenerating(false);
-      setGenProgress(null);
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const res = await fetch("/api/ai/bulk-generate-solutions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ problemIds: [ids[i]] }),
+        });
+        if (!res.ok) failed++;
+        else {
+          const data = await res.json();
+          if ((data.results as { ok: boolean }[])[0]?.ok === false) failed++;
+        }
+      } catch {
+        failed++;
+      }
+      setGenProgress({ done: i + 1, total: ids.length });
     }
+
+    setMessage({
+      text: failed === 0
+        ? `Solutions generated for all ${ids.length} problems.`
+        : `Done — ${ids.length - failed} succeeded, ${failed} failed.`,
+      ok: failed === 0,
+    });
+    setGenerating(false);
+    setGenProgress(null);
   }
 
   async function handleBulkSuggestOptions() {
@@ -83,27 +89,33 @@ export function BulkActionsBar({ problems }: { problems: Problem[] }) {
     setMessage(null);
     setOptionsProgress({ done: 0, total: ids.length });
 
-    try {
-      const res = await fetch("/api/ai/bulk-suggest-options", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemIds: ids })
-      });
-      const data = await res.json();
-      const failed = (data.results as { ok: boolean }[]).filter((r) => !r.ok).length;
-      setMessage({
-        text: failed === 0
-          ? `Answer choices generated for all ${ids.length} problems.`
-          : `Done — ${ids.length - failed} succeeded, ${failed} failed.`,
-        ok: failed === 0
-      });
-      setOptionsProgress({ done: ids.length, total: ids.length });
-    } catch {
-      setMessage({ text: "Generation failed — check the console.", ok: false });
-    } finally {
-      setGeneratingOptions(false);
-      setOptionsProgress(null);
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const res = await fetch("/api/ai/bulk-suggest-options", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ problemIds: [ids[i]] }),
+        });
+        if (!res.ok) failed++;
+        else {
+          const data = await res.json();
+          if ((data.results as { ok: boolean }[])[0]?.ok === false) failed++;
+        }
+      } catch {
+        failed++;
+      }
+      setOptionsProgress({ done: i + 1, total: ids.length });
     }
+
+    setMessage({
+      text: failed === 0
+        ? `Answer choices generated for all ${ids.length} problems.`
+        : `Done — ${ids.length - failed} succeeded, ${failed} failed.`,
+      ok: failed === 0,
+    });
+    setGeneratingOptions(false);
+    setOptionsProgress(null);
   }
 
   function handleBulkPublish() {
